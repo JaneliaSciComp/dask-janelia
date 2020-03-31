@@ -1,0 +1,2 @@
+distributed>=2.5.2
+dask-jobqueu>=0.6.3
