@@ -19,17 +19,32 @@ def getLSFCluster(
     queue: str ="normal",
     walltime: str = "1:00",
     ncpus: int = 1,
-    cores: int = 1,
-    memory: str = "16GB",
+    mem: str = "16GB",
     threads_per_worker: int = 1,
     **kwargs
 ) -> dask_jobqueue.LSFCLuster:
-    """
-    Instantiate a dask_jobqueue cluster using the LSF scheduler on the Janelia Research Campus compute cluster.
+    """Create a dask_jobqueue.LSFCluster for use on the Janelia Research Campus compute cluster.
+    
     This function wraps the class dask_jobqueue.LSFCLuster and instantiates this class with some sensible defaults.
     Extra kwargs added to this function will be passed to LSFCluster().
     The full API for the LSFCluster object can be found here:
     https://jobqueue.dask.org/en/latest/generated/dask_jobqueue.LSFCluster.html#dask_jobqueue.LSFCluster
+    
+    Parameters
+    ----------
+    queue: str
+        The name of the LSF queue to submit to. Defaults to "normal".
+    walltime: str
+        The expected lifetime of a worker. Defaults to one hour, i.e. "1:00" 
+    ncpus: int
+        The number of CPUs to request per worker. Defaults to 1.
+    mem: str
+        The amount of memory to request per worker. Defaults to 16 GB.
+    threads_per_worker: int
+        If this value is 1, then extra environment variables are set on the worker to guard against running multithreaded code on the workers.
+        No action is taken if this value is not 1.
+        This kwarg is named to match a corresponding kwarg in the LocalCluster constructor.
+
     """
 
     # Set environment variables to prevent worker code from running multithreaded.
@@ -40,8 +55,6 @@ def getLSFCluster(
             "export OPENMP_NUM_THREADS=1",
             "export OMP_NUM_THREADS=1",
         ]
-    else:
-        raise ValueError('threads_per_worker can only be 1')
 
     USER = os.environ["USER"]
     HOME = os.environ["HOME"]
@@ -56,9 +69,8 @@ def getLSFCluster(
 
     cluster = LSFCluster(
         walltime=walltime,
-        cores=cores,
         ncpus=ncpus,
-        memory=memory,
+        mem=mem,
         env_extra=env_extra,
         **kwargs
     )
@@ -78,15 +90,15 @@ def bsubAvailable() -> bool:
     return result
 
 
-def getCluster(**kwargs) -> distributed.Client:
+def autoClient(force_local=False, **kwargs) -> distributed.Client:
     """
     Create a distributed.Client object backed by either a dask_jobqueue.LSFCluster (for use on the Janelia Compute Cluster)
     or a distributed.LocalCluster (for use on a single machine). This function uses the output of the bsubAvailable function
     to determine whether code is running on the compute cluster or not.
 
-    Keyword arguments given to this function will be forwarded to the constructor for the cluster object.
+    Additional keyword arguments given to this function will be forwarded to the constructor for the cluster object.
     """
-    if bsubAvailable():
+    if bsubAvailable() and force_local is False:
         cluster = getLSFCluster(**kwargs)
     else:
         if 'host' not in kwargs:

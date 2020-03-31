@@ -1,1 +1,1 @@
-from dask_janelia import get_jobqueue_cluster, get_cluster
+from dask_janelia import getLSFCluster, autoClient
