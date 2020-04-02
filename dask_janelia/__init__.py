@@ -1,1 +1,1 @@
-from dask_janelia import getLSFCluster, autoClient
+from .deploy import getLSFCluster, autoClient
