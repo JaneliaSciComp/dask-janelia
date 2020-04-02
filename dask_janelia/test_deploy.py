@@ -9,7 +9,7 @@ import os
 running_on_cluster = bsubAvailable()
 
 
-@pytest.fixture(params=["lsf", "local-default"], scope="module")
+@pytest.fixture(params=["lsf", "local"], scope="module")
 def client(request):
     if request.param == "lsf":
         if running_on_cluster:
@@ -17,7 +17,7 @@ def client(request):
         else:
             return None
     if request.param == "local":
-        return autoClient(force_local=True)
+        return autoClient(force_local=True, n_workers=0)
 
 
 def test_scaling(client, num_workers=1):
