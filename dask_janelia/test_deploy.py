@@ -9,7 +9,7 @@ import os
 running_on_cluster = bsubAvailable()
 
 
-@pytest.fixture(params=["lsf", "local"], scope="module")
+@pytest.fixture(params=["lsf", "local-default"], scope="module")
 def client(request):
     if request.param == "lsf":
         if running_on_cluster:
@@ -24,7 +24,7 @@ def test_scaling(client, num_workers=1):
     if client is None:
         pytest.skip()
     client.cluster.scale(0)
-    time.sleep(0.5)
+    time.sleep(1.5)
     client.cluster.scale(num_workers)
     client.wait_for_workers(num_workers)
     assert len(client.cluster.workers) == num_workers
@@ -46,10 +46,7 @@ def test_single_threaded(client):
         assert worker_env["OPENMP_NUM_THREADS"] == "1"
         assert worker_env["OMP_NUM_THREADS"] == "1"
     elif isinstance(client.cluster, LocalCluster):
-        worker_specs = client.cluster.worker_spec
-        assert (
-            all([v["options"]["nthreads"] == 1 for v in worker_specs.values()]) == True
-        )
+        pytest.skip()
 
 
 def _get_env():
