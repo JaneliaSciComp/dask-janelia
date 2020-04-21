@@ -1,4 +1,4 @@
-from .deploy import bsubAvailable, autoClient, getLSFCluster
+from dask_janelia.deploy import bsubAvailable, autoClient, getLSFCluster
 from distributed import Client, LocalCluster
 from dask_jobqueue import LSFCluster
 import time
