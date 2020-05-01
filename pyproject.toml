@@ -6,7 +6,7 @@ authors = ["Davis Vann Bennett <davis.v.bennett@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.7"
 dask-jobqueue = "0.7"
 dask = "^2.14.0"
 distributed = "^2.14.0"
