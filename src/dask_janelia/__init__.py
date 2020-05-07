@@ -1,1 +1,1 @@
-from .deploy import getLSFCluster, autoClient
+from .deploy import JaneliaCluster, autoClient
