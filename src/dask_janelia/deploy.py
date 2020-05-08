@@ -111,22 +111,13 @@ def autoClient(
         Determines whether to force use of the LocalCluster. Otherwise, calling autoClient in code running on
         the Janelia compute cluster will use LSFCluster. Defaults to False.
 
-    set_as_default: bool
-        Determines whether the resulting Client object registers itself as the global default.
-
     cluster_kwargs: dict
         Dictionary of keyword arguments that will be passed to JaneliaCluster or LocalCluster.
     """
     if bsubAvailable() and not local:
         cluster = JaneliaCluster(**cluster_kwargs)
     else:
-        # Allows remote access to the scheduler dashboard
-        if "host" not in cluster_kwargs:
-            cluster_kwargs["host"] = ""
         cluster = LocalCluster(**cluster_kwargs)
 
-    if "set_as_default" not in kwargs:
-        kwargs["set_as_default"] = set_as_default
-
-    client = Client(address=cluster, **kwargs)
+    client = Client(cluster, **kwargs)
     return client
