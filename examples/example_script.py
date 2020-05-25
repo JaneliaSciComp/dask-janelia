@@ -4,20 +4,21 @@ from dask_janelia import autoClient
 from distributed import progress, Client
 from pathlib import Path
 import os
-import numpy as np
+import random
 import time
+
 
 def process_file(fname):
     # return the size in bytes of the file
     result = os.path.getsize(fname)
     # simulate a long-running process by sleeping for 0-1s
-    time.sleep(np.random.random_choice())
+    time.sleep(random.random())
     return result
 
 
 if __name__ == "__main__":
-    with autoClient(host="") as cl:
-        print(cl.cluster.dashboard_url)
+    with autoClient(cluster_kwargs={"host": ""}) as cl:
+        print(f"Cluster dashboard running at {cl.cluster.dashboard_link}")
         home_files = list(Path.home().glob("*"))
         futures = cl.map(process_file, home_files)
         progress(futures)
