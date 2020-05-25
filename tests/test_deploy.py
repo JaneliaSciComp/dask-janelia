@@ -1,4 +1,4 @@
-from dask_janelia.deploy import bsubAvailable, autoClient, getLSFCluster
+from dask_janelia.deploy import bsubAvailable, autoClient, JaneliaCluster
 from distributed import Client, LocalCluster
 from dask_jobqueue import LSFCluster
 import time
@@ -13,11 +13,11 @@ running_on_cluster = bsubAvailable()
 def client(request):
     if request.param == "lsf":
         if running_on_cluster:
-            return autoClient(force_local=False)
+            return autoClient(local=False)
         else:
             return None
     if request.param == "local":
-        return autoClient(force_local=True, n_workers=0)
+        return autoClient(local=True)
 
 
 def test_scaling(client, num_workers=1):
@@ -27,6 +27,9 @@ def test_scaling(client, num_workers=1):
     time.sleep(1.5)
     client.cluster.scale(num_workers)
     client.wait_for_workers(num_workers)
+    # seems that client.wait_for_workers can return control before the dict of workers 
+    # is updated...
+    time.sleep(.2)
     assert len(client.cluster.workers) == num_workers
     client.cluster.scale(0)
     time.sleep(0.5)
