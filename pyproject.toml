@@ -7,7 +7,7 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.7"
-dask-jobqueue = "0.7"
+dask-jobqueue = "0.7.1"
 dask = "^2.14.0"
 distributed = "^2.14.0"
 bokeh = "^2.1.1"

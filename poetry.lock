@@ -122,11 +122,11 @@ distributed = ["distributed (>=2.0)"]
 
 [[package]]
 category = "main"
-description = "Easy deployment of Dask Distributed on job queuing systems such as PBS, Slurm, or SGE.*"
+description = "Deploy Dask on job queuing systems like PBS, Slurm, SGE or LSF"
 name = "dask-jobqueue"
 optional = false
 python-versions = ">=3.5"
-version = "0.7.0"
+version = "0.7.1"
 
 [package.dependencies]
 dask = ">=2.5.2"
@@ -553,7 +553,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "847a3df76d0f36cebbafa0570fd60b9b34c1c0fceb3a0e875362dd3c9eb24e98"
+content-hash = "9d47e35b1313037964564dedd80671869593c7da7b06dbab7c8bb98fbbfb31c2"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -597,8 +597,8 @@ dask = [
     {file = "dask-2.19.0.tar.gz", hash = "sha256:e18035cebc2a32e9d483f76d7718f846e95a0f75e6b0fe192a21328c236a465b"},
 ]
 dask-jobqueue = [
-    {file = "dask-jobqueue-0.7.0.tar.gz", hash = "sha256:660cd4cd052ada872fd6413f224a2d9221026dd55a8a29a9a7d52b262bec67e7"},
-    {file = "dask_jobqueue-0.7.0-py2.py3-none-any.whl", hash = "sha256:308ea4a16f701480439c6485382c6a4beae80da6bc9c16df25641972f471b579"},
+    {file = "dask-jobqueue-0.7.1.tar.gz", hash = "sha256:d32ddf3e3c7db29ace102037fa5f61c8db2d945176454dc316a6ffdb8bbfe88b"},
+    {file = "dask_jobqueue-0.7.1-py2.py3-none-any.whl", hash = "sha256:2196f864a178c976f0d90d0a8d3a7adaaf59584f02793dc3d9495de479738a41"},
 ]
 distlib = [
     {file = "distlib-0.3.1-py2.py3-none-any.whl", hash = "sha256:8c09de2c67b3e7deef7184574fc060ab8a793e7adbb183d942c389c8b13c52fb"},
