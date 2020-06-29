@@ -7,6 +7,8 @@ import os
 import random
 import time
 
+num_workers = 2
+
 
 def process_file(fname):
     # return the size in bytes of the file
@@ -20,6 +22,7 @@ if __name__ == "__main__":
     # wrapping the client in a context manager ensures that the client and the cluster get cleaned up
     with Client(auto_cluster()) as cl:
         print(f"Cluster dashboard running at {cl.cluster.dashboard_link}")
+        cl.cluster.scale(num_workers)
         # list all the files in the home directory
         home_files = list(Path.home().glob("*"))
         # map the function `process_file` over `home_files`
