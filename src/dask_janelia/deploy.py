@@ -4,6 +4,9 @@ from dask_jobqueue import LSFCluster  # type: ignore
 import os
 from pathlib import Path
 import warnings
+import dask
+
+dask.config.set({"jobqueue.lsf.use-stdin": True})
 
 
 def JaneliaCluster(
