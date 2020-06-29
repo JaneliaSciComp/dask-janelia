@@ -1,28 +1,29 @@
-from dask_janelia.deploy import bsubAvailable, autoClient, JaneliaCluster
+from dask_janelia.deploy import bsub_available, auto_cluster, JaneliaCluster
 from distributed import Client, LocalCluster
 from dask_jobqueue import LSFCluster
 import time
 import pytest
-import os
 
 # check if this code is running on the compute cluster
-running_on_cluster = bsubAvailable()
+running_on_cluster = bsub_available()
 
 
 @pytest.fixture(params=["lsf", "local"], scope="module")
-def client(request):
+def cluster(request):
     if request.param == "lsf":
         if running_on_cluster:
-            return autoClient(local=False)
+            return auto_cluster(local=False)
         else:
             return None
     if request.param == "local":
-        return autoClient(local=True)
+        return auto_cluster(local=True)
 
 
-def test_scaling(client, num_workers=1):
-    if client is None:
+@pytest.mark.parametrize("num_workers", [1, 2, 3])
+def test_scaling(cluster, num_workers):
+    if not cluster:
         pytest.skip()
+    client = Client(cluster)
     client.cluster.scale(0)
     time.sleep(1.5)
     client.cluster.scale(num_workers)
@@ -36,11 +37,13 @@ def test_scaling(client, num_workers=1):
     assert len(client.cluster.workers) == 0
 
 
-def test_single_threaded(client):
-    if client is None:
+def test_single_threaded(cluster):
+    if not cluster:
         pytest.skip()
 
-    if isinstance(client.cluster, LSFCluster):
+    client = Client(cluster)
+
+    if isinstance(cluster, LSFCluster):
         client.cluster.scale(1)
         worker_env = client.submit(_get_env).result()
         client.cluster.scale(0)
@@ -48,7 +51,7 @@ def test_single_threaded(client):
         assert worker_env["OPENBLAS_NUM_THREADS"] == "1"
         assert worker_env["OPENMP_NUM_THREADS"] == "1"
         assert worker_env["OMP_NUM_THREADS"] == "1"
-    elif isinstance(client.cluster, LocalCluster):
+    elif isinstance(cluster, LocalCluster):
         pytest.skip()
 
 
