@@ -1,1 +1,1 @@
-from .deploy import JaneliaCluster, autoClient
+from .deploy import JaneliaCluster, auto_cluster

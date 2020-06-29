@@ -1,17 +1,17 @@
 from shutil import which
-from distributed import Client, LocalCluster
-from dask_jobqueue import LSFCluster
+from distributed import Client, LocalCluster  # type: ignore
+from dask_jobqueue import LSFCluster  # type: ignore
 import os
 from pathlib import Path
 import warnings
 
 
 def JaneliaCluster(
-    queue: str = "normal",
     walltime: str = "1:00",
     cores: int = 1,
     memory: str = "16GB",
     threads_per_worker: int = 1,
+    death_timeout: str = "600s",
     **kwargs,
 ) -> LSFCluster:
     """Create a dask_jobqueue.LSFCluster for use on the Janelia Research Campus compute cluster.
@@ -21,8 +21,6 @@ def JaneliaCluster(
 
     Parameters
     ----------
-    queue: str
-        The name of the LSF queue to submit to. Defaults to "normal".
     walltime: str
         The expected lifetime of a worker. Defaults to one hour, i.e. "1:00"
     cores: int
@@ -37,7 +35,7 @@ def JaneliaCluster(
     Examples
     --------
 
-    >>> cluster = JaneliaCluster(cores=2, memory="32GB", project="scicompsoft")
+    >>> cluster = JaneliaCluster(cores=2, memory="32GB", project="scicompsoft", queue="normal")
 
     """
 
@@ -82,7 +80,7 @@ def JaneliaCluster(
     return cluster
 
 
-def bsubAvailable() -> bool:
+def bsub_available() -> bool:
     """Check if the `bsub` shell command is available
 
     Returns True if the `bsub` command is available on the path, False otherwise. This is used to check whether code is
@@ -92,13 +90,8 @@ def bsubAvailable() -> bool:
     return result
 
 
-def autoClient(
-    local: bool = False,
-    set_as_default: bool = False,
-    cluster_kwargs: dict = {},
-    **kwargs,
-) -> Client:
-    """Convenience function to generate a distributed.Client
+def auto_cluster(local: bool = False, **kwargs,) -> Client:
+    """Convenience function to generate a dask cluster on either a local machine or the compute cluster.
 
     Create a distributed.Client object backed by either a dask_jobqueue.LSFCluster (for use on the Janelia Compute Cluster)
     or a distributed.LocalCluster (for use on a single machine). This function uses the output of the bsubAvailable function
@@ -108,16 +101,15 @@ def autoClient(
     Parameters
     ----------
     local: bool
-        Determines whether to force use of the LocalCluster. Otherwise, calling autoClient in code running on
+        Determines whether to force use of the LocalCluster. Otherwise, calling autoCluster in code running on
         the Janelia compute cluster will use LSFCluster. Defaults to False.
 
-    cluster_kwargs: dict
-        Dictionary of keyword arguments that will be passed to JaneliaCluster or LocalCluster.
+    **kwargs: dict
+        Dictionary of keyword arguments that will be passed to either the LocalCluster or LSFCluster constructors.
     """
-    if bsubAvailable() and not local:
-        cluster = JaneliaCluster(**cluster_kwargs)
+    if bsub_available() and not local:
+        cluster = JaneliaCluster(**kwargs)
     else:
-        cluster = LocalCluster(**cluster_kwargs)
+        cluster = LocalCluster(**kwargs)
 
-    client = Client(cluster, **kwargs)
-    return client
+    return cluster
