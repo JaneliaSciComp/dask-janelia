@@ -8,13 +8,14 @@ import random
 import time
 
 num_workers = 2
+mean_runtime = 20
 
 
-def process_file(fname):
+def process_file(fname, delay):
     # return the size in bytes of the file
     result = os.path.getsize(fname)
-    # simulate a long-running process by sleeping for a few seconds
-    time.sleep(5 * random.random())
+    # simulate a long-running process by sleeping
+    time.sleep(delay * random.random())
     return result
 
 
@@ -22,13 +23,17 @@ if __name__ == "__main__":
     # wrapping the client in a context manager ensures that the client and the cluster get cleaned up
     with Client(auto_cluster()) as cl:
         print(f"Cluster dashboard running at {cl.cluster.dashboard_link}")
+        # add workers
         cl.cluster.scale(num_workers)
         # list all the files in the home directory
         home_files = list(Path.home().glob("*"))
-        # map the function `process_file` over `home_files`
-        futures = cl.map(process_file, home_files)
+        # ensure that the total runtime is ~mean_runtime
+        delays = ((mean_runtime * num_workers) / len(home_files),) * len(home_files)
+        # map the function `process_file` over the arguments `home_files` and `delays`
+        # this returns a collection of futures
+        futures = cl.map(process_file, home_files, delays)
         progress(futures)
-        # get the results
+        # block until all the futures are finished
         result = cl.gather(futures)
 
     print(*zip(map(lambda v: str(v.name), home_files), result))

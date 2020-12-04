@@ -1,1 +1,1 @@
-from .deploy import JaneliaCluster, auto_cluster
+from .deploy import get_cluster
