@@ -32,7 +32,10 @@ def bsub_available() -> bool:
 
 
 def get_LSFCLuster(
-    walltime: str = "1:00", cores: int = 1, death_timeout: str = "600s", **kwargs,
+    threads_per_worker: int = 1,
+    walltime: str = "1:00",
+    death_timeout: str = "600s",
+    **kwargs,
 ) -> LSFCluster:
     """Create a dask_jobqueue.LSFCluster for use on the Janelia Research Campus compute cluster.
 
@@ -46,6 +49,8 @@ def get_LSFCLuster(
 
     Parameters
     ----------
+    threads_per_worker: int
+        Number of cores to request from LSF. Directly translated to the `cores` kwarg to LSFCluster.
     walltime: str
         The expected lifetime of a worker. Defaults to one hour, i.e. "1:00"
     cores: int
@@ -64,16 +69,10 @@ def get_LSFCLuster(
 
     """
 
-    if "threads_per_worker" in kwargs:
-        warnings.warn(
-            "The `threads_per_worker` kwarg has no effect on an LSFCluster. Set `cores` instead."
-        )
-        kwargs.pop("threads_per_worker")
-
     if "env_extra" not in kwargs:
         kwargs["env_extra"] = []
 
-    kwargs["env_extra"].extend(make_single_threaded_env_vars(cores))
+    kwargs["env_extra"].extend(make_single_threaded_env_vars(threads_per_worker))
 
     USER = os.environ["USER"]
     HOME = os.environ["HOME"]
@@ -88,7 +87,10 @@ def get_LSFCLuster(
         kwargs["log_directory"] = log_dir
 
     cluster = LSFCluster(
-        walltime=walltime, cores=cores, death_timeout=death_timeout, **kwargs
+        cores=threads_per_worker,
+        walltime=walltime,
+        death_timeout=death_timeout,
+        **kwargs,
     )
     return cluster
 
@@ -116,9 +118,9 @@ def get_LocalCluster(n_workers: int = 0, threads_per_worker: int = 1, **kwargs):
 
 def get_cluster(
     threads_per_worker: int = 1,
-    target_deployment: Optional[str] = None,
+    deployment: Optional[str] = None,
     local_kwargs: Dict[str, Any] = {},
-    lsf_kwargs: Dict[str, Any] = {},
+    lsf_kwargs: Dict[str, Any] = {"memory": "16GB"},
 ) -> Union[LSFCluster, LocalCluster]:
 
     """Convenience function to generate a dask cluster on either a local machine or the compute cluster.
@@ -133,9 +135,9 @@ def get_cluster(
     threads_per_worker: int
         Number of threads per worker. Defaults to 1.
 
-    target_deployment: str or None
-        Which deployment (LocalCluster or LSFCluster) to prefer. If target_deployment=None, then LSFCluster is preferred, but LocalCluster is used if
-        bsub is not available. If target_deployment='lsf' and bsub is not available, an error is raised.
+    deployment: str or None
+        Which deployment (LocalCluster or LSFCluster) to prefer. If deployment=None, then LSFCluster is preferred, but LocalCluster is used if
+        bsub is not available. If deployment='lsf' and bsub is not available, an error is raised.
     local_kwargs: dict
         Dictionary of keyword arguments for the distributed.LocalCluster constructor
     lsf_kwargs: dict
@@ -146,31 +148,29 @@ def get_cluster(
         warnings.warn(
             "The `cores` kwarg for LSFCLuster has no effect. Use the `threads_per_worker` argument instead."
         )
-    lsf_kwargs["cores"] = threads_per_worker
 
     if "threads_per_worker" in local_kwargs:
         warnings.warn(
             "the `threads_per_worker` kwarg was found in `local_kwargs`. It will be overwritten with the `threads_per_worker` argument to this function."
         )
-    local_kwargs["threads_per_worker"] = threads_per_worker
 
-    if target_deployment is None:
+    if deployment is None:
         if bsub_available():
-            cluster = get_LSFCLuster(**lsf_kwargs)
+            cluster = get_LSFCLuster(threads_per_worker, **lsf_kwargs)
         else:
-            cluster = get_LocalCluster(**local_kwargs)
-    if target_deployment == "lsf":
+            cluster = get_LocalCluster(threads_per_worker, **local_kwargs)
+    elif deployment == "lsf":
         if bsub_available():
-            cluster = get_LSFCLuster(**lsf_kwargs)
+            cluster = get_LSFCLuster(threads_per_worker, **lsf_kwargs)
         else:
             raise EnvironmentError(
                 "You requested an LSFCluster but the command `bsub` is not available."
             )
-    elif target_deployment == "local":
-        cluster = get_LocalCluster(**local_kwargs)
+    elif deployment == "local":
+        cluster = get_LocalCluster(threads_per_worker, **local_kwargs)
     else:
         raise ValueError(
-            f'target_deployment must be one of (None, "lsf", or "local"), not {target_deployment}'
+            f'deployment must be one of (None, "lsf", or "local"), not {deployment}'
         )
 
     return cluster
