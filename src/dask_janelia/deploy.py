@@ -95,7 +95,7 @@ def get_LSFCLuster(
     return cluster
 
 
-def get_LocalCluster(n_workers: int = 0, threads_per_worker: int = 1, **kwargs):
+def get_LocalCluster(threads_per_worker: int = 1, n_workers: int = 0, **kwargs):
     """
     Creata a distributed.LocalCluster with defaults that make it more similar to a deployment on the Janelia Compute cluster.
     This function is a light wrapper around the distributed.LocalCluster constructor.
