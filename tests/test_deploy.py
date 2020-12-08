@@ -1,5 +1,6 @@
-from dask_janelia.deploy import bsub_available, auto_cluster, JaneliaCluster
-from distributed import Client, LocalCluster
+from dask_janelia import get_cluster
+from dask_janelia.deploy import bsub_available
+from distributed import Client
 from dask_jobqueue import LSFCluster
 import time
 import pytest
@@ -8,15 +9,21 @@ import pytest
 running_on_cluster = bsub_available()
 
 
-@pytest.fixture(params=["lsf", "local"], scope="module")
+@pytest.fixture(
+    params=[("lsf", 1), ("local", 1), ("lsf", 2), ("local", 2)], scope="module"
+)
 def cluster(request):
-    if request.param == "lsf":
+    deployment: str = request.param[0]
+    threads_per_worker: int = request.param[1]
+    if deployment == "lsf":
         if running_on_cluster:
-            return auto_cluster(local=False)
+            return get_cluster(
+                deployment=deployment, threads_per_worker=threads_per_worker
+            )
         else:
             return None
     if request.param == "local":
-        return auto_cluster(local=True)
+        return get_cluster(deployment=deployment, threads_per_worker=threads_per_worker)
 
 
 @pytest.mark.parametrize("num_workers", [1, 2, 3])
@@ -37,25 +44,25 @@ def test_scaling(cluster, num_workers):
     assert len(client.cluster.workers) == 0
 
 
-def test_single_threaded(cluster):
+def test_threading_env_vars(cluster):
     if not cluster:
         pytest.skip()
 
-    client = Client(cluster)
+    def _get_env():
+        import os
+
+        return os.environ
 
     if isinstance(cluster, LSFCluster):
+        client = Client(cluster)
         client.cluster.scale(1)
+        client.wait_for_workers(1)
+        threads_per_worker = [
+            spec["options"]["cores"] for spec in client.cluster.worker_spec.values()
+        ][0]
         worker_env = client.submit(_get_env).result()
         client.cluster.scale(0)
-        assert worker_env["NUM_MKL_THREADS"] == "1"
-        assert worker_env["OPENBLAS_NUM_THREADS"] == "1"
-        assert worker_env["OPENMP_NUM_THREADS"] == "1"
-        assert worker_env["OMP_NUM_THREADS"] == "1"
-    elif isinstance(cluster, LocalCluster):
-        pytest.skip()
-
-
-def _get_env():
-    import os
-
-    return os.environ
+        assert worker_env["NUM_MKL_THREADS"] == str(threads_per_worker)
+        assert worker_env["OPENBLAS_NUM_THREADS"] == str(threads_per_worker)
+        assert worker_env["OPENMP_NUM_THREADS"] == str(threads_per_worker)
+        assert worker_env["OMP_NUM_THREADS"] == str(threads_per_worker)

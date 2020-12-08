@@ -1,71 +1,78 @@
 from shutil import which
-from distributed import Client, LocalCluster  # type: ignore
-from dask_jobqueue import LSFCluster  # type: ignore
+from distributed import LocalCluster
+from dask_jobqueue import LSFCluster
 import os
 from pathlib import Path
-import warnings
 import dask
+from typing import Union, List, Dict, Any, Optional
+import warnings
 
 dask.config.set({"jobqueue.lsf.use-stdin": True})
 
+threading_env_vars = [
+    "NUM_MKL_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "OPENMP_NUM_THREADS",
+    "OMP_NUM_THREADS",
+]
 
-def JaneliaCluster(
-    walltime: str = "1:00",
-    cores: int = 1,
-    memory: str = "16GB",
+
+def make_single_threaded_env_vars(threads: int) -> List[str]:
+    return [f"export {var}={threads}" for var in threading_env_vars]
+
+
+def bsub_available() -> bool:
+    """Check if the `bsub` shell command is available
+
+    Returns True if the `bsub` command is available on the path, False otherwise. This is used to check whether code is
+    running on the Janelia Compute Cluster.
+    """
+    result = which("bsub") is not None
+    return result
+
+
+def get_LSFCLuster(
     threads_per_worker: int = 1,
+    walltime: str = "1:00",
     death_timeout: str = "600s",
     **kwargs,
 ) -> LSFCluster:
     """Create a dask_jobqueue.LSFCluster for use on the Janelia Research Campus compute cluster.
 
-    This function wraps the class dask_jobqueue.LSFCLuster and instantiates this class with some sensible defaults.
-    Additional keyword arguments added to this function will be passed to the LSFCluster constructor.
+    This function wraps the class dask_jobqueue.LSFCLuster and instantiates this class with some sensible defaults,
+    given how the Janelia cluster is configured.
+
+    This function will add environment variables that prevent libraries (OPENMP, MKL, BLAS) from running multithreaded routines with parallelism
+    that exceeds the number of requested cores.
+
+    Additional keyword arguments added to this function will be passed to the dask_jobqueue.LSFCluster constructor.
 
     Parameters
     ----------
+    threads_per_worker: int
+        Number of cores to request from LSF. Directly translated to the `cores` kwarg to LSFCluster.
     walltime: str
         The expected lifetime of a worker. Defaults to one hour, i.e. "1:00"
     cores: int
-        The number of CPUs to request per worker. Defaults to 1.
-    memory: str
-        The amount of memory to request per worker. Defaults to 16 GB.
-    threads_per_worker: int
-        If this value is 1, then extra environment variables are set on the worker to guard against running multithreaded code on the workers.
-        No action is taken if this value is not 1.
-        This kwarg is named to match a corresponding kwarg in the LocalCluster constructor.
+        The number of cores to request per worker. Defaults to 1.
+    death_timeout: str
+        The duration for the scheduler to wait for workers before flagging them as dead, e.g. "600s". For jobs with a large number of workers,
+        LSF may take a long time (minutes) to request workers. This timeout value must exceed that duration, otherwise the scheduler will
+        flag these slow-to-arrive workers as unresponsive and kill them.
+    **kwargs:
+        Additional keyword arguments passed to the LSFCluster constructor
 
     Examples
     --------
 
-    >>> cluster = JaneliaCluster(cores=2, memory="32GB", project="scicompsoft", queue="normal")
+    >>> cluster = get_LSFCLuster(cores=2, project="scicompsoft", queue="normal")
 
     """
 
     if "env_extra" not in kwargs:
         kwargs["env_extra"] = []
 
-    if threads_per_worker == 1:
-        if cores > 1:
-            warnings.warn(
-                """
-            You have requested multiple cores per worker, but set threads_per_worker to 1. Your workers may not be able to run multithreaded
-            libraries.
-            """
-            )
-        # Set environment variables to prevent worker code from running multithreaded.
-        kwargs["env_extra"].extend(
-            [
-                "export NUM_MKL_THREADS=1",
-                "export OPENBLAS_NUM_THREADS=1",
-                "export OPENMP_NUM_THREADS=1",
-                "export OMP_NUM_THREADS=1",
-            ]
-        )
-    else:
-        warnings.warn(
-            f"You have set threads_per_worker to {threads_per_worker}. This parameter only has an effect when set to 1."
-        )
+    kwargs["env_extra"].extend(make_single_threaded_env_vars(threads_per_worker))
 
     USER = os.environ["USER"]
     HOME = os.environ["HOME"]
@@ -79,21 +86,43 @@ def JaneliaCluster(
         Path(log_dir).mkdir(parents=False, exist_ok=True)
         kwargs["log_directory"] = log_dir
 
-    cluster = LSFCluster(walltime=walltime, cores=cores, memory=memory, **kwargs)
+    cluster = LSFCluster(
+        cores=threads_per_worker,
+        walltime=walltime,
+        death_timeout=death_timeout,
+        **kwargs,
+    )
     return cluster
 
 
-def bsub_available() -> bool:
-    """Check if the `bsub` shell command is available
-
-    Returns True if the `bsub` command is available on the path, False otherwise. This is used to check whether code is
-    running on the Janelia Compute Cluster.
+def get_LocalCluster(n_workers: int = 0, threads_per_worker: int = 1, **kwargs):
     """
-    result = which("bsub") is not None
-    return result
+    Creata a distributed.LocalCluster with defaults that make it more similar to a deployment on the Janelia Compute cluster.
+    This function is a light wrapper around the distributed.LocalCluster constructor.
+
+    Parameters
+    ----------
+    n_workers: int
+        The number of workers to start the cluster with. This defaults to 0 here.
+    threads_per_worker: int
+        The number of threads to assign to each worker.
+    **kwargs:
+        Additional keyword arguments passed to the LocalCluster constructor
+    Examples
+    --------
+
+    >>> cluster = get_LocalCluster(threads_per_worker=8)
+    """
+    return LocalCluster(n_workers, threads_per_worker, **kwargs)
 
 
-def auto_cluster(local: bool = False, **kwargs,) -> Client:
+def get_cluster(
+    threads_per_worker: int = 1,
+    deployment: Optional[str] = None,
+    local_kwargs: Dict[str, Any] = {},
+    lsf_kwargs: Dict[str, Any] = {"memory": "16GB"},
+) -> Union[LSFCluster, LocalCluster]:
+
     """Convenience function to generate a dask cluster on either a local machine or the compute cluster.
 
     Create a distributed.Client object backed by either a dask_jobqueue.LSFCluster (for use on the Janelia Compute Cluster)
@@ -103,16 +132,45 @@ def auto_cluster(local: bool = False, **kwargs,) -> Client:
 
     Parameters
     ----------
-    local: bool
-        Determines whether to force use of the LocalCluster. Otherwise, calling autoCluster in code running on
-        the Janelia compute cluster will use LSFCluster. Defaults to False.
+    threads_per_worker: int
+        Number of threads per worker. Defaults to 1.
 
-    **kwargs: dict
-        Dictionary of keyword arguments that will be passed to either the LocalCluster or LSFCluster constructors.
+    deployment: str or None
+        Which deployment (LocalCluster or LSFCluster) to prefer. If deployment=None, then LSFCluster is preferred, but LocalCluster is used if
+        bsub is not available. If deployment='lsf' and bsub is not available, an error is raised.
+    local_kwargs: dict
+        Dictionary of keyword arguments for the distributed.LocalCluster constructor
+    lsf_kwargs: dict
+        Dictionary of keyword arguments for the dask_jobqueue.LSFCluster constructor
     """
-    if bsub_available() and not local:
-        cluster = JaneliaCluster(**kwargs)
+
+    if "cores" in lsf_kwargs:
+        warnings.warn(
+            "The `cores` kwarg for LSFCLuster has no effect. Use the `threads_per_worker` argument instead."
+        )
+
+    if "threads_per_worker" in local_kwargs:
+        warnings.warn(
+            "the `threads_per_worker` kwarg was found in `local_kwargs`. It will be overwritten with the `threads_per_worker` argument to this function."
+        )
+
+    if deployment is None:
+        if bsub_available():
+            cluster = get_LSFCLuster(threads_per_worker, **lsf_kwargs)
+        else:
+            cluster = get_LocalCluster(threads_per_worker, **local_kwargs)
+    elif deployment == "lsf":
+        if bsub_available():
+            cluster = get_LSFCLuster(threads_per_worker, **lsf_kwargs)
+        else:
+            raise EnvironmentError(
+                "You requested an LSFCluster but the command `bsub` is not available."
+            )
+    elif deployment == "local":
+        cluster = get_LocalCluster(threads_per_worker, **local_kwargs)
     else:
-        cluster = LocalCluster(**kwargs)
+        raise ValueError(
+            f'deployment must be one of (None, "lsf", or "local"), not {deployment}'
+        )
 
     return cluster
