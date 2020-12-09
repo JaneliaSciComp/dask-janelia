@@ -14,7 +14,7 @@ cluster = get_cluster()
 cl = Client(cluster)
 ```
 
-Be default, an instance of `dask_jobqueue.LSFCluster` with sensible defaults (1 thread/core per worker, 16 GB of ram / worker on LSF) is returned when this code is running on the Janelia compute cluster (i.e., when the `bsub` command is detected in the environment). Otherwise an instance of `distributed.LocalCluster` is returned. 
+Be default, an instance of `dask_jobqueue.LSFCluster` with sensible defaults (1 thread / core per worker, 16 GB of ram per worker on LSF) is returned when this code is running on the Janelia compute cluster (i.e., when the `bsub` command is detected in the environment). Otherwise an instance of `distributed.LocalCluster` is returned. 
 
 The automatic detection can be partially overrriden by supplying a keyword argument to `get_cluster`:
 
@@ -29,4 +29,4 @@ Under the hood, `get_cluster` is simply calling the `LSFCluster` and `LocalClust
 # Janelia Cluster: request more memory per job
 cluster = get_cluster(lsf_kwargs={'mem': '32GB', 'project' : 'foo'})
 ```
-Consult the documentation for [LocalCluster](https://docs.dask.org/en/latest/setup/single-distributed.html#distributed.deploy.local.LocalCluster) and [LSFCluster](https://jobqueue.dask.org/en/latest/generated/dask_jobqueue.LSFCluster.html#dask_jobqueue.LSFCluster) for more information about what goes ins `lsf_kwargs` and `local_kwargs`.
+Consult the documentation for [LocalCluster](https://docs.dask.org/en/latest/setup/single-distributed.html#distributed.deploy.local.LocalCluster) and [LSFCluster](https://jobqueue.dask.org/en/latest/generated/dask_jobqueue.LSFCluster.html#dask_jobqueue.LSFCluster) for more information about what goes in `lsf_kwargs` and `local_kwargs`.
