@@ -113,7 +113,9 @@ def get_LocalCluster(threads_per_worker: int = 1, n_workers: int = 0, **kwargs):
 
     >>> cluster = get_LocalCluster(threads_per_worker=8)
     """
-    return LocalCluster(n_workers, threads_per_worker, **kwargs)
+    return LocalCluster(
+        n_workers=n_workers, threads_per_worker=threads_per_worker, **kwargs
+    )
 
 
 def get_cluster(

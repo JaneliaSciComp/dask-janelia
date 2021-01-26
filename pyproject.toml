@@ -8,8 +8,8 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.7"
 dask-jobqueue = "0.7.1"
-dask = "^2021.01.1"
-distributed = "^2021.01.1"
+dask = {extras = ["bag"], version = "^2021.01.0"}
+distributed = "^2021.01.0"
 bokeh = "^2.1.1"
 
 [tool.poetry.dev-dependencies]
